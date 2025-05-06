@@ -1,5 +1,5 @@
 [project]
-name = "yapper-python"
+name = "campus-yapper"
 version = "0.1.0"
 description = "Message broker for the digital campus"
 authors = [
