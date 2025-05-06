@@ -6,6 +6,19 @@ Message broker for the digital campus.
 
 **Note:** `campus-yapper` is not yet published on PyPI, hence installation via `pip` is not yet supported.
 
+First, clone the repository:
+
+```bash
+git clone https://github.com/nyjc-computing/yapper-python
+```
+
+Then, install the package using `poetry`:
+
+```bash
+cd yapper-python
+poetry install
+```
+
 ## Usage
 
 Yapper has a basic interface very similar to Flask.
@@ -15,6 +28,7 @@ To use `campus-yapper` as an event client listening for events:
 ```python
 from campus_yapper import Yapper, Event
 
+# Identify the app using a unique client ID string
 yap = Yapper('campus.myapp')
 
 @yap.on_event('google.forms.submit')
