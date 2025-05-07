@@ -67,6 +67,7 @@ class YapperInterface(ABC):
         def decorator(handler: EventHandler) -> EventHandler:
             self._handlers[label] = handler
             return handler
+        self.subscribe(label)
         return decorator
     
     def handle_event(self, event: Event) -> None:
@@ -80,6 +81,16 @@ class YapperInterface(ABC):
     def emit(self, label: EventLabel, data: EventData | None = None) -> None:
         """Emit an event to the message broker."""
         raise NotImplementedError("Subclasses must implement this method.")
+    
+    @abstractmethod
+    def subscribe(self, label: EventLabel) -> None:
+        """Subscribe to an event label."""
+        raise NotImplementedError("Subclasses must implement this method.")
+    
+    def unsubscribe(self, label: EventLabel) -> None:
+        """Unsubscribe from an event label."""
+        # Subclasses should override this method to implement unsubscription logic.
+        raise NotImplementedError("Subclasses must implement this method.")    
     
     @abstractmethod
     def listen(self) -> list[Event]:
