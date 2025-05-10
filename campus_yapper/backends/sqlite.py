@@ -10,16 +10,25 @@ from typing import Any, Generator, TypedDict
 from contextlib import contextmanager
 
 
+class SQLiteResult(TypedDict):
+    """Typed dictionary for SQLite query results."""
+    fetchall: list[dict]
+    lastrowid: int
+    rowcount: int
+
+
 def dict_factory(cursor: sqlite3.Cursor, row: sqlite3.Row) -> dict[str, Any]:
     """Convert SQLite rows to dictionaries."""
     return {col[0]: row[idx] for idx, col in enumerate(cursor.description)}
 
-
-class SQLiteResult(TypedDict):
-    """Typed dictionary for SQLite query results."""
-    result: list[dict]
-    lastrowid: int
-    rowcount: int
+def cursor_to_dict(cursor: sqlite3.Cursor) -> SQLiteResult:
+    """Extract query results and commonly used attributes from cursor."""
+    # Test implementation does not expect large result set, fetchall() considered safe.
+    return {
+        "fetchall": cursor.fetchall(),
+        "lastrowid": cursor.lastrowid,
+        "rowcount": cursor.rowcount,
+    }
 
 
 class SQLiteYapper(YapperInterface):
@@ -34,45 +43,24 @@ class SQLiteYapper(YapperInterface):
         conn = sqlite3.connect(self.db_uri)
         conn.row_factory = dict_factory
         conn.execute("PRAGMA foreign_keys = ON")
-        conn.isolation_level = None  # Use autocommit mode
+        conn.isolation_level = None  # Use autocommit mode for performance
         try:
             yield conn
         finally:
             conn.close()
 
-    def _execute(
-            self,
-            query: str,
-            params: tuple = (),
-    ) -> SQLiteResult:
+    def _execute(self, query: str, params: tuple = ()) -> SQLiteResult:
         """Execute a SQL query."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.execute(query, params)
-            result = cursor.fetchall()
-        # Test implementation does not expect large result set,
-        # fetchall() considered safe.
-        return {
-            "result": result,
-            "lastrowid": cursor.lastrowid,
-            "rowcount": cursor.rowcount,
-        }
+            return cursor_to_dict(cursor)
     
-    def _executemany(
-            self,
-            query: str,
-            params: list[tuple] = [],
-    ) -> SQLiteResult:
+    def _executemany(self, query: str, params: list[tuple]) -> SQLiteResult:
         """Execute a SQL query with multiple parameters."""
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.executemany(query, params)
-            result = cursor.fetchall()
-        return {
-            "result": result,
-            "lastrowid": cursor.lastrowid,
-            "rowcount": cursor.rowcount,
-        }
 
     def _init_db(self) -> None:
         """Initialize the SQLite database."""
@@ -85,7 +73,7 @@ class SQLiteYapper(YapperInterface):
             );"""
         )
         self._execute(
-            """CREATE TABLE IF NOT EXISTS subscribers (
+            """CREATE TABLE IF NOT EXISTS subscriptions (
                 client_id TEXT NOT NULL,
                 label TEXT NOT NULL,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -95,45 +83,72 @@ class SQLiteYapper(YapperInterface):
         self._execute(
             """CREATE TABLE IF NOT EXISTS unread (
                 client_id TEXT NOT NULL,
-                event_id INTEGER NOT NULL REFERENCES events(id),
-                PRIMARY KEY (client_id, event_id)
+                label TEXT NOT NULL,
+                event_id INTEGER NOT NULL,
+                PRIMARY KEY (client_id, event_id),
+                FOREIGN KEY (event_id)
+                    REFERENCES events(id)
+                    ON DELETE CASCADE,
+                FOREIGN KEY (client_id, label)
+                    REFERENCES subscriptions(client_id, label)
+                    ON DELETE CASCADE
             );"""
         )
 
     def emit(self, label: EventLabel, data: EventData | None = None) -> None:
         """Emit an event to the message broker."""
         data = data or {}
-        result = self._execute(
-            "INSERT INTO events (label, data) VALUES (?, ?)",
+        event_id = self._execute(
+            "INSERT INTO events (label, data) VALUES (?, ?) RETURNING id",
             (label, str(data))
-        )
-        # Get subscribers
-        subscribers = [
+        )["fetchall"][0]
+        # Get subscriptions
+        subscriptions = [
             row["client_id"] for row in self._execute(
-                "SELECT client_id FROM subscribers WHERE label = ?",
+                "SELECT client_id FROM subscriptions WHERE label = ?",
                 (label,)
-            )["result"]
+            )["fetchall"]
         ]
-        # Notify subscribers
+        # Notify subscriptions
         self._executemany(
             "INSERT INTO unread (client_id, event_id) VALUES (?, ?)",
-            [(client_id, result["lastrowid"]) for client_id in subscribers]
+            [(client_id, event_id) for client_id in subscriptions]
         )
 
     def subscribe(self, label: EventLabel) -> None:
         """Subscribe to an event label."""
         self._execute(
-            "INSERT OR IGNORE INTO subscribers (client_id, label) VALUES (?, ?)",
+            """INSERT OR IGNORE INTO subscriptions (client_id, label)
+              VALUES (?, ?)""",
             (self.client_id, label)
         )
     
     def unsubscribe(self, label: EventLabel) -> None:
-        """Unsubscribe from an event label."""
+        """Unsubscribe from an event label.
+
+        A label value of * will unsubscribe from all labels.
+        This is not set as a default value for safety reasons.
+        """
         self._execute(
-            "DELETE FROM subscribers WHERE client_id = ? AND label = ?",
+            (
+                "DELETE FROM subscriptions WHERE client_id = ?"
+                if label == "*"
+                else "DELETE FROM subscriptions WHERE client_id = ? AND label = ?"
+            ),
             (self.client_id, label)
         )
         self._sweep()  # Clean up old events
+
+    def _clear_unread(self) -> None:
+        """Clear unread events for this client.
+
+        This is performed as part of other operations, and is seldom called on
+        its own.
+        """
+        self._execute(
+            "DELETE FROM unread WHERE client_id = ?",
+            (self.client_id,)
+        )
     
     def listen(self) -> list[Event]:
         """Listen for events from the message broker."""
@@ -145,10 +160,7 @@ class SQLiteYapper(YapperInterface):
             (self.client_id,)
         )
         # Clear unread events
-        self._execute(
-            "DELETE FROM unread WHERE client_id = ?",
-            (self.client_id,)
-        )
+        self._clear_unread()
         # Return events
         return [
             Event(row["label"], row["data"])
@@ -156,7 +168,7 @@ class SQLiteYapper(YapperInterface):
         ]
     
     def _sweep(self) -> None:
-        """Clear old events without subscribers."""
+        """Clear old events without subscriptions."""
         self._execute(
             "DELETE FROM events WHERE id NOT IN "
             "(SELECT DISTINCT event_id FROM unread)"
@@ -167,25 +179,10 @@ class SQLiteYapper(YapperInterface):
         self._init_db()
         super().start()
     
-    def pause(self) -> None:
-        """Pause the Yapper instance.
-
-        This differs from stop() in that it does not clear
-        the event queue.
-        """
-        super().stop()
-
     def stop(self) -> None:
         """Stop the Yapper instance."""
         self.pause()
-        self.listen()  # clear event queue
-        # Unsubscribe from all events
-        self._execute(
-            "DELETE FROM unread WHERE client_id = ?",
-            (self.client_id,)
-        )
-        self._execute(
-            "DELETE FROM subscribers WHERE client_id = ?",
-            (self.client_id,)
-        )
+        self.listen()  # also clears unread
+        self.unsubscribe("*")
         self._sweep()
+        super().stop()
