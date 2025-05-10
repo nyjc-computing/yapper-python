@@ -59,10 +59,7 @@ class YapperInterface(ABC):
         """Check if the Yapper instance is running."""
         return self._running
 
-    def on_event(
-            self,
-            label: EventLabel
-    ) -> Callable[[EventHandler], EventHandler]:
+    def on_event(self, label: EventLabel) -> Callable[[EventHandler], EventHandler]:
         """Decorator to register an event handler for a specific event label."""
         def decorator(handler: EventHandler) -> EventHandler:
             self._handlers[label] = handler
@@ -84,11 +81,12 @@ class YapperInterface(ABC):
     
     @abstractmethod
     def subscribe(self, label: EventLabel) -> None:
-        """Subscribe to an event label."""
+        """Notify the backend of client's subscription to an event label."""
         raise NotImplementedError("Subclasses must implement this method.")
-    
+
+    @abstractmethod
     def unsubscribe(self, label: EventLabel) -> None:
-        """Unsubscribe from an event label."""
+        """Notify the backend of client's unsubscription from an event label."""
         # Subclasses should override this method to implement unsubscription logic.
         raise NotImplementedError("Subclasses must implement this method.")    
     
