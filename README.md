@@ -26,15 +26,15 @@ Yapper has a basic interface very similar to Flask.
 To use `campus-yapper` as an event client listening for events:
 
 ```python
-from campus_yapper import Yapper, Event
+import campus_yapper
 
 # Identify the app using a unique client ID string
-yap = Yapper('campus.myapp')
+yapper = campus_yapper.create('campus.myapp')
 
-@yap.on_event('google.forms.submit')
+@yapper.on_event('google.forms.submit')
 def on_google_forms_submit(event: Event) -> None:
     """Handle event when a google form is submitted"""
-    # Event has a `data` attribute containing event data
+    # Assume event has a `data` attribute containing event data
     user = event.data['email']
     cca = event.data['cca']
     # Assuming successful form submission adds user to the CCA
@@ -44,7 +44,7 @@ def on_google_forms_submit(event: Event) -> None:
     )
 
 # Begin listening for events and handling them
-yap.run()
+yapper.run()
 ```
 
 Dynamic event handler registration is not yet designed, but is on the roadmap.
