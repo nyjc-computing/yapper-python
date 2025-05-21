@@ -153,6 +153,11 @@ class SQLiteYapper(YapperInterface):
     
     def listen(self) -> list[Event]:
         """Listen for events from the message broker."""
+        # HACK: There is a tiny window between the two queries where
+        # events could be emitted but not collected before being cleared.
+        # This is ignored in this test SQLite client, but will be an issue
+        # in a real implementation under higher loads.
+
         # Get and clear unread events
         result = self._execute(
             "SELECT events.label, events.data FROM events "
