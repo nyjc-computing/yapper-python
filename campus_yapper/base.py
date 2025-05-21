@@ -11,7 +11,7 @@ EventLabel = str  # A namedspaced label for the event.
 EventData = dict  # Metadata associated with the event.
 
 
-class Event(Protocol):
+class Event(ABC):
     """Base class for events.
 
     This class is used to define the structure of an event.
@@ -99,7 +99,7 @@ class YapperInterface(ABC):
         """Receive events from the message broker, calling any registered
         handlers.
         """
-        self._running = True
+        self.start()
         while self.running:
             for event in self.listen():
                 self.handle_event(event)

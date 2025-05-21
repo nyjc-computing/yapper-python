@@ -13,7 +13,7 @@ from contextlib import contextmanager
 class SQLiteResult(TypedDict):
     """Typed dictionary for SQLite query results."""
     fetchall: list[dict]
-    lastrowid: int
+    lastrowid: int | None
     rowcount: int
 
 
@@ -61,6 +61,7 @@ class SQLiteYapper(YapperInterface):
         with self._get_conn() as conn:
             cursor = conn.cursor()
             cursor.executemany(query, params)
+            return cursor_to_dict(cursor)
 
     def _init_db(self) -> None:
         """Initialize the SQLite database."""
@@ -152,6 +153,11 @@ class SQLiteYapper(YapperInterface):
     
     def listen(self) -> list[Event]:
         """Listen for events from the message broker."""
+        # HACK: There is a tiny window between the two queries where
+        # events could be emitted but not collected before being cleared.
+        # This is ignored in this test SQLite client, but will be an issue
+        # in a real implementation under higher loads.
+
         # Get and clear unread events
         result = self._execute(
             "SELECT events.label, events.data FROM events "
@@ -159,12 +165,13 @@ class SQLiteYapper(YapperInterface):
             "WHERE unread.client_id = ?",
             (self.client_id,)
         )
+        events = result["fetchall"]
         # Clear unread events
         self._clear_unread()
         # Return events
         return [
             Event(row["label"], row["data"])
-            for row in result["result"]
+            for row in events
         ]
     
     def _sweep(self) -> None:
@@ -181,7 +188,6 @@ class SQLiteYapper(YapperInterface):
     
     def stop(self) -> None:
         """Stop the Yapper instance."""
-        self.pause()
         self.listen()  # also clears unread
         self.unsubscribe("*")
         self._sweep()
