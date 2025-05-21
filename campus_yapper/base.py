@@ -11,7 +11,7 @@ EventLabel = str  # A namedspaced label for the event.
 EventData = dict  # Metadata associated with the event.
 
 
-class Event(Protocol):
+class Event(ABC):
     """Base class for events.
 
     This class is used to define the structure of an event.
