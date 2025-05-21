@@ -28,7 +28,7 @@ To use `campus-yapper` as an event client listening for events:
 ```python
 import campus_yapper
 
-# Identify the app using a unique client ID string
+# Identify the app using a unique client name string
 yapper = campus_yapper.create('campus.myapp')
 
 @yapper.on_event('google.forms.submit')
