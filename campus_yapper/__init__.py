@@ -9,6 +9,13 @@ This package provides the Yapper class for sending and receiving events.
 # information.
 
 from .base import Event, EventHandler, YapperInterface
+from .backends.sqlite import SqliteYapper
+
+
+def create(*args, **kwargs) -> YapperInterface:
+    """Factory function to get a Yapper client instance."""
+    return SqliteYapper(*args, **kwargs)
+
 
 # The __all__ variable is used to define the public API of this module.
 # See https://docs.python.org/3/tutorial/modules.html#importing-from-a-package
@@ -17,4 +24,5 @@ __all__ = [
     "Event",
     "EventHandler",
     "YapperInterface",
+    "create",
 ]
