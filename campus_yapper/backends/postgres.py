@@ -22,13 +22,21 @@ class PostgreSQLResult(TypedDict):
 
 def cursor_to_dict(cursor: psycopg2.extras.RealDictCursor) -> PostgreSQLResult:
     """Extract query results and commonly used attributes from cursor."""
-    # Production implementation should handle large result sets appropriately
-    rows = cursor.fetchall()
-    return {
-        "fetchall": [dict(row) for row in rows],  # Convert RealDictRow to dict
-        "lastrowid": None,  # PostgreSQL doesn't have lastrowid like SQLite
-        "rowcount": cursor.rowcount,
-    }
+    # Check if the cursor has results to fetch
+    try:
+        rows = cursor.fetchall()
+        return {
+            "fetchall": [dict(row) for row in rows],  # Convert RealDictRow to dict
+            "lastrowid": None,  # PostgreSQL doesn't have lastrowid like SQLite
+            "rowcount": cursor.rowcount,
+        }
+    except psycopg2.ProgrammingError:
+        # No results to fetch (e.g., DDL statements like CREATE TABLE)
+        return {
+            "fetchall": [],
+            "lastrowid": None,
+            "rowcount": cursor.rowcount,
+        }
 
 
 class PostgreSQLYapper(YapperInterface):
