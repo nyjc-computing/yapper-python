@@ -4,10 +4,12 @@ SQLite backend for campus_yapper.
 This implementation is for local testing purposes only.
 It is not intended for production use.
 """
-from campus_yapper.base import ClientId, Event, EventLabel, EventData, YapperInterface
-import sqlite3
+
 from typing import Any, Generator, TypedDict
 from contextlib import contextmanager
+import sqlite3
+
+from campus_yapper.base import ClientId, Event, EventLabel, EventData, YapperInterface
 
 
 class SQLiteResult(TypedDict):
