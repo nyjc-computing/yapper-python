@@ -21,15 +21,28 @@ poetry install
 
 ## Usage
 
-Yapper has a basic interface very similar to Flask.
+Yapper uses environment variables for configuration and automatically selects the appropriate backend based on your environment.
 
-To use `campus-yapper` as an event client listening for events:
+### Environment Variables
+
+Set the following environment variables:
+
+```bash
+export CLIENT_ID="your_unique_client_id"
+export CLIENT_SECRET="your_client_secret"
+export ENV="development"  # development, testing, staging, or production
+```
+
+- **development/testing**: Uses SQLite backend (suitable for local development)
+- **staging/production**: Uses PostgreSQL backend (suitable for production deployments)
+
+### Basic Usage
 
 ```python
 import campus_yapper
 
-# Identify the app using a unique client name string
-yapper = campus_yapper.create('campus.myapp')
+# Create yapper instance (backend determined by ENV variable)
+yapper = campus_yapper.create()
 
 @yapper.on_event('google.forms.submit')
 def on_google_forms_submit(event: Event) -> None:
@@ -38,13 +51,29 @@ def on_google_forms_submit(event: Event) -> None:
     user = event.data['email']
     cca = event.data['cca']
     # Assuming successful form submission adds user to the CCA
-    yap.emit(
+    yapper.emit(
         'campus.circles.user.add',
         data={'user': user, 'circle': cca}
     )
 
 # Begin listening for events and handling them
 yapper.run()
+```
+
+### Backend-Specific Configuration
+
+#### SQLite (Development/Testing)
+```python
+# Optional: specify custom database file
+yapper = campus_yapper.create(db="./my_app.db")
+# Default: uses in-memory database (":memory:")
+```
+
+#### PostgreSQL (Staging/Production)
+```python
+# db_uri parameter is required for staging/production environments
+yapper = campus_yapper.create(db_uri="postgresql://user:pass@host:5432/database")
+# No default value - you must explicitly specify the connection URI
 ```
 
 Dynamic event handler registration is not yet designed, but is on the roadmap.
