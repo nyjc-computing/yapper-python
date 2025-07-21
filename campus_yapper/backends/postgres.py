@@ -87,13 +87,14 @@ class PostgreSQLYapper(YapperInterface):
         self._execute(
             """CREATE TABLE IF NOT EXISTS unread (
                 client_id TEXT NOT NULL,
+                label TEXT NOT NULL,
                 event_id BIGINT NOT NULL,
-                PRIMARY KEY (client_id, event_id),
+                PRIMARY KEY (client_id, label, event_id),
                 FOREIGN KEY (event_id)
                     REFERENCES events(id)
                     ON DELETE CASCADE,
-                FOREIGN KEY (client_id)
-                    REFERENCES subscriptions(client_id)
+                FOREIGN KEY (client_id, label)
+                    REFERENCES subscriptions(client_id, label)
                     ON DELETE CASCADE
             );"""
         )
