@@ -19,24 +19,23 @@ def create(**kwargs) -> YapperInterface:
 
     Environment variables:
         CLIENT_ID: Unique identifier for the client (required)
-        CLIENT_SECRET: Client secret for authentication (required) 
+        CLIENT_SECRET: Client secret for authentication (required)
         ENV: Environment type that determines backend ("development", "testing", "staging", "production")
              - "development" or "testing": SQLiteYapper
              - "staging" or "production": PostgreSQLYapper
-    
+        YAPPERDB_URI: PostgreSQL connection URI (required for staging/production)
+
     Args:
         **kwargs: Backend-specific arguments:
             - For SQLite (development/testing):
                 - db (optional): Database file path, defaults to ":memory:"
-            - For PostgreSQL (staging/production):
-                - db_uri (required): PostgreSQL connection URI
-    
+
     Returns:
         YapperInterface: A backend-specific Yapper instance
 
     Raises:
         ValueError: If CLIENT_ID or CLIENT_SECRET environment variables are not set,
-                   or if db_uri is not provided for PostgreSQL environments
+                   or if YAPPERDB_URI is not set for PostgreSQL environments
     """
     client_id = os.getenv("CLIENT_ID")
     client_secret = os.getenv("CLIENT_SECRET")
@@ -52,13 +51,14 @@ def create(**kwargs) -> YapperInterface:
         case "development" | "testing":
             return SQLiteYapper(client_id, **kwargs)
         case "staging" | "production":
-            if "db_uri" not in kwargs:
+            yapperdb_uri = os.getenv("YAPPERDB_URI")
+            if not yapperdb_uri:
                 raise ValueError(
-                    f"db_uri parameter is required for {env} environment. "
-                    "Please provide a PostgreSQL connection URI."
+                    f"YAPPERDB_URI environment variable is required for {env} environment. "
+                    "Please provide a PostgreSQL connection URI via YAPPERDB_URI."
                 )
-            return PostgreSQLYapper(client_id, **kwargs)
-    
+            return PostgreSQLYapper(client_id, db_uri=yapperdb_uri, **kwargs)
+
     raise ValueError(
         f"Unsupported ENV value: {env}. "
         "Use 'development', 'testing', 'staging', or 'production'."
