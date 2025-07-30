@@ -16,7 +16,7 @@ from .backends.postgres import PostgreSQLYapper
 
 def create(**kwargs) -> YapperInterface:
     """Factory function to get a Yapper client instance.
-    
+
     Environment variables:
         CLIENT_ID: Unique identifier for the client (required)
         CLIENT_SECRET: Client secret for authentication (required) 
@@ -26,14 +26,14 @@ def create(**kwargs) -> YapperInterface:
     
     Args:
         **kwargs: Backend-specific arguments:
-            - For SQLite (development/testing): 
+            - For SQLite (development/testing):
                 - db (optional): Database file path, defaults to ":memory:"
             - For PostgreSQL (staging/production):
                 - db_uri (required): PostgreSQL connection URI
     
     Returns:
         YapperInterface: A backend-specific Yapper instance
-    
+
     Raises:
         ValueError: If CLIENT_ID or CLIENT_SECRET environment variables are not set,
                    or if db_uri is not provided for PostgreSQL environments
@@ -41,7 +41,7 @@ def create(**kwargs) -> YapperInterface:
     client_id = os.getenv("CLIENT_ID")
     client_secret = os.getenv("CLIENT_SECRET")
     env = os.getenv("ENV", "development").lower()
-    
+
     if not client_id:
         raise ValueError("CLIENT_ID environment variable is required")
     if not client_secret:

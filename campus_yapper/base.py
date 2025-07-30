@@ -37,6 +37,7 @@ class EventHandler(Protocol):
     This protocol defines the structure of an event handler.
     Handlers should accept an Event object as a parameter.
     """
+
     def __call__(self, event: Event) -> None:
         """Handle the event without returning a value."""
         pass
@@ -66,7 +67,7 @@ class YapperInterface(ABC):
             return handler
         self.subscribe(label)
         return decorator
-    
+
     def handle_event(self, event: Event) -> None:
         """Handle an event by calling the registered handler."""
         # Subclasses should override this method to implement custom event handling.
@@ -78,7 +79,7 @@ class YapperInterface(ABC):
     def emit(self, label: EventLabel, data: EventData | None = None) -> None:
         """Emit an event to the message broker."""
         raise NotImplementedError("Subclasses must implement this method.")
-    
+
     @abstractmethod
     def subscribe(self, label: EventLabel) -> None:
         """Notify the backend of client's subscription to an event label."""
@@ -88,8 +89,8 @@ class YapperInterface(ABC):
     def unsubscribe(self, label: EventLabel) -> None:
         """Notify the backend of client's unsubscription from an event label."""
         # Subclasses should override this method to implement unsubscription logic.
-        raise NotImplementedError("Subclasses must implement this method.")    
-    
+        raise NotImplementedError("Subclasses must implement this method.")
+
     @abstractmethod
     def listen(self) -> list[Event]:
         """Listen for events from the message broker."""
@@ -111,5 +112,5 @@ class YapperInterface(ABC):
 
     def stop(self) -> None:
         """Stop the Yapper instance."""
-        # Subclasses should override this method to implement shutdown logic.        
+        # Subclasses should override this method to implement shutdown logic.
         self._running = False
